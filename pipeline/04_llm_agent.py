@@ -24,7 +24,7 @@ log = logging.getLogger("cancergpt.agent")
 INDEX_DIR   = Path("rag_index")
 FEAT_DIR    = Path("features")
 PROC_DIR    = Path("processed")
-REPORTS_DIR = Path("reports")
+REPORTS_DIR = Path("/tmp/reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
 # ── PASTE YOUR GROQ API KEY HERE ─────────────────────────────────────────────
