@@ -28,7 +28,8 @@ REPORTS_DIR = Path("reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
 # ── PASTE YOUR GROQ API KEY HERE ─────────────────────────────────────────────
-GROQ_API_KEY = ""
+import os
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 # Get free key from: https://console.groq.com/keys
 # Key starts with: gsk_...
 # ─────────────────────────────────────────────────────────────────────────────
