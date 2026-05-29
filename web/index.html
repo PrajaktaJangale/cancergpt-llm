@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CancerGPT — Oncology Clinical Decision Support</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#05080f;--surface:#0c1220;--surface2:#111827;
+  --border:#1e2d47;--border-light:#243552;
+  --text:#e8edf5;--text-muted:#7a91b0;--text-dim:#3d5270;
+  --accent:#00c9a7;--accent2:#0ea5e9;--accent3:#f59e0b;
+  --danger:#f43f5e;--success:#22c55e;--purple:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 60% 40% at 80% 20%,rgba(0,201,167,.06) 0%,transparent 60%),
+  radial-gradient(ellipse 40% 60% at 20% 80%,rgba(14,165,233,.05) 0%,transparent 60%);
+  pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(30,45,71,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(30,45,71,.3) 1px,transparent 1px);
+  background-size:60px 60px;pointer-events:none;z-index:0;
+  mask-image:radial-gradient(ellipse 100% 100% at 50% 50%,black 40%,transparent 100%);}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+  padding:0 2rem;height:64px;background:rgba(5,8,15,.88);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none;cursor:pointer;}
+.logo-mark{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:14px;color:var(--bg);}
+.logo-text{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);}
+.logo-text span{color:var(--accent);}
+.nav-badge{font-size:10px;font-family:'DM Mono',monospace;color:var(--accent3);
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:2px 7px;text-transform:uppercase;}
+.nav-links{display:flex;align-items:center;gap:8px;}
+.nav-link{font-size:13px;color:var(--text-muted);padding:6px 14px;border-radius:6px;
+  cursor:pointer;border:none;background:none;font-family:'Outfit',sans-serif;transition:all .2s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:var(--surface);}
+.nav-cta{background:linear-gradient(135deg,var(--accent),#00a88a)!important;color:var(--bg)!important;font-weight:600;padding:8px 18px!important;}
+
+/* LAYOUT */
+.app{position:relative;z-index:1;min-height:100vh;}
+.page{display:none;}.page.active{display:block;}
+#page-home{padding-top:64px;}
+#page-consult{padding-top:64px;height:100vh;display:none;}
+#page-consult.active{display:flex;flex-direction:column;}
+
+/* HERO */
+.hero{padding:100px 2rem 80px;max-width:900px;margin:0 auto;text-align:center;}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-family:'DM Mono',monospace;
+  letter-spacing:2px;text-transform:uppercase;color:var(--accent);background:rgba(0,201,167,.08);
+  border:1px solid rgba(0,201,167,.2);border-radius:100px;padding:6px 16px;margin-bottom:32px;animation:fadeInUp .8s ease both;}
+.hero-tag::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s ease infinite;}
+h1.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(42px,7vw,76px);line-height:1.05;
+  letter-spacing:-2px;color:var(--text);margin-bottom:24px;animation:fadeInUp .8s ease .1s both;}
+h1.hero-title em{font-style:italic;color:var(--accent);}
+.hero-sub{font-size:18px;color:var(--text-muted);line-height:1.7;max-width:600px;margin:0 auto 48px;font-weight:300;animation:fadeInUp .8s ease .2s both;}
+.hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;animation:fadeInUp .8s ease .3s both;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:10px;
+  font-size:15px;font-weight:500;cursor:pointer;border:none;transition:all .25s;font-family:'Outfit',sans-serif;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#00a88a);color:var(--bg);box-shadow:0 0 30px rgba(0,201,167,.3);}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(0,201,167,.45);}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border-light);}
+.btn-ghost:hover{background:var(--surface);color:var(--text);}
+
+/* STATS */
+.stats-strip{display:flex;justify-content:center;max-width:700px;margin:70px auto 0;
+  border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);animation:fadeInUp .8s ease .4s both;}
+.stat-item{flex:1;padding:24px 20px;text-align:center;border-right:1px solid var(--border);}
+.stat-item:last-child{border-right:none;}
+.stat-num{font-family:'DM Serif Display',serif;font-size:32px;color:var(--accent);letter-spacing:-1px;display:block;}
+.stat-label{font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:4px;}
+
+/* FEATURES */
+.features{padding:80px 2rem;max-width:1100px;margin:0 auto;}
+.section-label{font-size:11px;font-family:'DM Mono',monospace;letter-spacing:3px;text-transform:uppercase;color:var(--accent2);margin-bottom:16px;}
+.section-title{font-family:'DM Serif Display',serif;font-size:clamp(28px,4vw,44px);letter-spacing:-1.5px;margin-bottom:56px;}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;
+  transition:all .3s;position:relative;overflow:hidden;}
+.feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity .3s;}
+.feature-card:hover{border-color:var(--border-light);transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.feature-card:hover::before{opacity:1;}
+.feature-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px;}
+.icon-green{background:rgba(0,201,167,.12);}
+.icon-blue{background:rgba(14,165,233,.12);}
+.icon-amber{background:rgba(245,158,11,.12);}
+.icon-purple{background:rgba(167,139,250,.12);}
+.icon-red{background:rgba(244,63,94,.12);}
+.icon-teal{background:rgba(20,184,166,.12);}
+.feature-title{font-size:17px;font-weight:600;margin-bottom:10px;}
+.feature-desc{font-size:14px;color:var(--text-muted);line-height:1.65;font-weight:300;}
+
+/* CONSULT LAYOUT */
+.consult-layout{display:grid;grid-template-columns:300px 1fr;flex:1;overflow:hidden;}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+.sidebar-section{padding:18px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+
+/* Patient input */
+.patient-input-group{display:flex;gap:8px;}
+.input-field{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:9px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;transition:border-color .2s;}
+.input-field:focus{border-color:var(--accent);}
+.input-field::placeholder{color:var(--text-dim);}
+.btn-sm{padding:9px 14px;font-size:13px;border-radius:8px;background:var(--accent);color:var(--bg);
+  border:none;cursor:pointer;font-weight:600;font-family:'Outfit',sans-serif;transition:opacity .2s;white-space:nowrap;}
+.btn-sm:hover{opacity:.85;}
+.btn-sm:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Patient select dropdown */
+.patient-select{width:100%;margin-top:10px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 10px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;
+  outline:none;cursor:pointer;transition:border-color .2s;}
+.patient-select:focus{border-color:var(--accent);}
+.patient-select option{background:var(--surface2);}
+
+/* Patient card */
+.patient-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.patient-name{font-family:'DM Serif Display',serif;font-size:17px;margin-bottom:10px;}
+.patient-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.tag{font-size:11px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;border:1px solid;}
+.tag-cancer{color:var(--danger);border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.07);}
+.tag-stage{color:var(--accent3);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.07);}
+.tag-age{color:var(--text-muted);border-color:var(--border);background:transparent;}
+.tag-tmb{color:var(--accent2);border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.07);}
+
+/* Genomic panel */
+.genomic-panel{padding:18px;flex:1;}
+.gene-list{display:flex;flex-direction:column;gap:5px;}
+.gene-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:13px;}
+.gene-name{font-family:'DM Mono',monospace;color:var(--purple);font-weight:500;}
+.gene-badge{font-size:10px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:4px;}
+.badge-actionable{background:rgba(0,201,167,.15);color:var(--accent);}
+.badge-driver{background:rgba(244,63,94,.15);color:var(--danger);}
+
+/* Chat */
+.chat-area{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.chat-header{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;background:var(--surface);}
+.chat-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px;}
+.status-dot{width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s ease infinite;}
+.chat-actions{display:flex;gap:8px;}
+.chat-action-btn{font-size:12px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:6px;
+  border:1px solid var(--border-light);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .2s;}
+.chat-action-btn:hover{background:var(--surface2);color:var(--text);}
+.disclaimer{background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.2);border-radius:10px;
+  padding:12px 16px;font-size:12px;color:rgba(244,63,94,.8);line-height:1.6;display:flex;gap:10px;margin:14px 20px;}
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth;}
+.chat-messages::-webkit-scrollbar{width:5px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.message{display:flex;gap:12px;animation:fadeInUp .3s ease;max-width:860px;}
+.message.user{flex-direction:row-reverse;margin-left:auto;}
+.msg-avatar{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;font-weight:600;font-family:'DM Mono',monospace;}
+.avatar-ai{background:linear-gradient(135deg,rgba(0,201,167,.2),rgba(14,165,233,.2));border:1px solid rgba(0,201,167,.3);color:var(--accent);}
+.avatar-user{background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(14,165,233,.2));border:1px solid rgba(167,139,250,.3);color:var(--purple);}
+.msg-content{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;font-size:14px;line-height:1.75;color:var(--text);}
+.message.user .msg-content{background:rgba(167,139,250,.07);border-color:rgba(167,139,250,.2);}
+.msg-content strong{color:var(--accent);}
+.msg-content code{font-family:'DM Mono',monospace;font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--accent3);}
+.tier-1a{color:var(--success);font-weight:600;}
+.tier-1b{color:var(--accent3);font-weight:600;}
+.tier-2{color:var(--accent2);font-weight:600;}
+
+/* Typing */
+.typing-indicator{display:flex;gap:4px;align-items:center;padding:14px 16px;}
+.typing-dot{width:6px;height:6px;background:var(--text-dim);border-radius:50%;animation:bounce 1.2s ease infinite;}
+.typing-dot:nth-child(2){animation-delay:.2s;}
+.typing-dot:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.4;}40%{transform:translateY(-6px);opacity:1;}}
+
+/* Quick prompts */
+.quick-prompts{padding:10px 20px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;background:var(--surface);}
+.quick-btn{font-size:12px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:6px;
+  border:1px solid var(--border-light);background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.quick-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,201,167,.07);}
+.quick-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Chat input */
+.chat-input-area{padding:14px 20px;background:var(--surface);border-top:1px solid var(--border);}
+.chat-input-row{display:flex;gap:10px;align-items:flex-end;}
+.chat-textarea{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:11px 14px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;resize:none;
+  outline:none;min-height:44px;max-height:120px;transition:border-color .2s;line-height:1.5;}
+.chat-textarea:focus{border-color:var(--accent);}
+.chat-textarea::placeholder{color:var(--text-dim);}
+.send-btn{width:44px;height:44px;border-radius:10px;background:var(--accent);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+.send-btn:hover{background:#00a88a;transform:scale(1.05);}
+.send-btn:disabled{background:var(--border);cursor:not-allowed;transform:none;}
+.send-btn svg{width:18px;height:18px;}
+
+/* Empty state */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;color:var(--text-dim);padding:40px;text-align:center;}
+.empty-icon{font-size:48px;opacity:.3;}
+.empty-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text-muted);}
+.empty-desc{font-size:14px;max-width:360px;line-height:1.65;}
+
+/* Pipeline */
+#page-pipeline{padding-top:64px;}
+.pipeline-content{max-width:900px;margin:0 auto;padding:60px 2rem;}
+.pipeline-steps{display:flex;flex-direction:column;position:relative;}
+.pipeline-steps::before{content:'';position:absolute;left:28px;top:30px;bottom:30px;width:2px;
+  background:linear-gradient(to bottom,var(--accent),var(--accent2),var(--purple));}
+.pipeline-step{display:flex;gap:28px;padding:32px 0;border-bottom:1px solid var(--border);}
+.pipeline-step:last-child{border-bottom:none;}
+.step-num{width:56px;height:56px;border-radius:50%;background:var(--surface);border:2px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:18px;
+  color:var(--accent);flex-shrink:0;position:relative;z-index:1;}
+.step-content{flex:1;padding-top:8px;}
+.step-title{font-size:18px;font-weight:600;margin-bottom:6px;}
+.step-desc{font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:12px;font-weight:300;}
+.step-file{display:inline-flex;align-items:center;gap:7px;font-family:'DM Mono',monospace;font-size:12px;
+  color:var(--accent3);background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:5px 12px;}
+
+/* Hint text */
+.hint-text{font-size:11px;color:var(--text-dim);margin-top:8px;font-family:'DM Mono',monospace;line-height:1.5;}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@media(max-width:768px){
+  .consult-layout{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .nav-links .nav-link:not(.nav-cta){display:none;}
+  .stats-strip{flex-direction:column;}
+  .stat-item{border-right:none;border-bottom:1px solid var(--border);}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo" onclick="showPage('home')">
+    <div class="logo-mark">Cx</div>
+    <span class="logo-text">Cancer<span>GPT</span></span>
+    <span class="nav-badge">Research Preview</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showPage('home')" id="nav-home">Overview</button>
+    <button class="nav-link" onclick="showPage('consult')" id="nav-consult">Consultation</button>
+    <button class="nav-link" onclick="showPage('pipeline')" id="nav-pipeline">Pipeline</button>
+    <button class="nav-link nav-cta" onclick="showPage('consult')">Start Consultation →</button>
+  </div>
+</nav>
+
+<div class="app">
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div class="hero-tag">AI-Powered Oncology Assistant</div>
+    <h1 class="hero-title">Clinical Intelligence<br>for <em>Precision Oncology</em></h1>
+    <p class="hero-sub">CancerGPT analyzes multi-omic cancer genomics data, matches patients to evidence-based treatment guidelines, and assists oncologists with real-time clinical decision support.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" onclick="showPage('consult')">🧬 Start Consultation</button>
+      <button class="btn btn-ghost" onclick="showPage('pipeline')">View Pipeline →</button>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-num" id="home-total">76</span><span class="stat-label">Patients</span></div>
+      <div class="stat-item"><span class="stat-num">29+</span><span class="stat-label">Cancer Genes</span></div>
+      <div class="stat-item"><span class="stat-num">RAG</span><span class="stat-label">NCCN Guidelines</span></div>
+      <div class="stat-item"><span class="stat-num">Tier 1A</span><span class="stat-label">Evidence</span></div>
+    </div>
+  </div>
+  <div class="features">
+    <div class="section-label">Core Capabilities</div>
+    <div class="section-title">Built for the Modern Oncologist</div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon icon-green">🧬</div><div class="feature-title">Multi-Omic Genomics Analysis</div><div class="feature-desc">Integrates somatic mutations, CNAs, and clinical data from cBioPortal for comprehensive tumor profiling.</div></div>
+      <div class="feature-card"><div class="feature-icon icon-blue">🎯</div><div class="feature-title">Actionable Biomarker Detection</div><div class="feature-desc">Identifies FDA-approved biomarkers: EGFR, ALK, BRAF, BRCA1/2, HER2, MSI-H, TMB-H and 25+ others automatically.</div></div>
+      <div class="feature-card"><div class="feature-icon icon-amber">💊</div><div class="feature-title">Treatment Recommendations</div><div class="feature-desc">Evidence-tiered suggestions (Tier 1A–3) aligned with NCCN, ESMO and ASCO guidelines.</div></div>
+      <div class="feature-card"><div class="feature-icon icon-purple">📊</div><div class="feature-title">Prognostic Assessment</div><div class="feature-desc">Survival prediction using TMB, CIN index, mutational signatures and pathway-level analysis.</div></div>
+      <div class="feature-card"><div class="feature-icon icon-teal">💬</div><div class="feature-title">Multi-Turn Consultation Chat</div><div class="feature-desc">Natural language clinical conversations with RAG-augmented context retrieval via Groq LLM.</div></div>
+      <div class="feature-card"><div class="feature-icon icon-red">📋</div><div class="feature-title">Clinical Report Generation</div><div class="feature-desc">Auto-generates structured EMR-ready reports with genomic summary, treatment plan and MDT points.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULT PAGE -->
+<div class="page" id="page-consult">
+  <div class="consult-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Patient lookup -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Patient Lookup</div>
+        <div class="patient-input-group">
+          <input class="input-field" id="patient-id-input" placeholder="Patient ID..."
+                 onkeydown="if(event.key==='Enter') loadPatient()">
+          <button class="btn-sm" onclick="loadPatient()" id="load-btn">Load</button>
+        </div>
+        <div class="hint-text" id="patient-hint">Loading patient list…</div>
+        <select class="patient-select" id="patient-select"
+          onchange="document.getElementById('patient-id-input').value=this.value">
+          <option value="">— Pick from list —</option>
+        </select>
+      </div>
+
+      <!-- Patient card -->
+      <div class="sidebar-section" id="patient-info-section" style="display:none">
+        <div class="sidebar-label">Current Patient</div>
+        <div class="patient-card">
+          <div class="patient-name" id="pt-name">—</div>
+          <div class="patient-tags" id="pt-tags"></div>
+        </div>
+      </div>
+
+      <!-- Genomic panel -->
+      <div class="genomic-panel" id="genomic-panel" style="display:none">
+        <div class="sidebar-label">Key Alterations</div>
+        <div class="gene-list" id="gene-list"></div>
+      </div>
+
+      <!-- No patient hint -->
+      <div style="padding:28px 18px;color:var(--text-dim);font-size:13px;line-height:1.7" id="no-patient-hint">
+        Select a patient from the list above or enter an ID to begin consultation.
+      </div>
+    </div>
+
+    <!-- CHAT AREA -->
+    <div class="chat-area">
+      <div class="chat-header">
+        <div class="chat-title">
+          <div class="status-dot"></div>
+          CancerGPT Clinical Assistant
+        </div>
+        <div class="chat-actions">
+          <button class="chat-action-btn" onclick="generateReport()">📋 Generate Report</button>
+          <button class="chat-action-btn" onclick="clearChat()">Clear</button>
+          <button class="chat-action-btn" onclick="window.location.href='patient_browser.html'">← Browser</button>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        ⚠️ <span><strong>Clinical Decision Support Only.</strong> CancerGPT outputs require review and validation by a licensed oncologist. This AI assists but does not replace physician judgment.</span>
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🧬</div>
+          <div class="empty-title">Ready for Consultation</div>
+          <div class="empty-desc">Select a patient from the sidebar or enter a Patient ID to load their genomic profile.</div>
+        </div>
+      </div>
+
+      <!-- Quick prompt tabs -->
+      <div class="quick-prompts" id="quick-prompts">
+        <button class="quick-btn" onclick="sendQuick('What are the actionable biomarkers in this patient?')">Actionable biomarkers</button>
+        <button class="quick-btn" onclick="sendQuick('What targeted therapies are available for this patient?')">Targeted therapies</button>
+        <button class="quick-btn" onclick="sendQuick('What is the prognosis based on this genomic profile?')">Prognostic assessment</button>
+        <button class="quick-btn" onclick="sendQuick('Are there relevant clinical trials for this patient?')">Clinical trials</button>
+        <button class="quick-btn" onclick="sendQuick('Explain the significance of KRAS mutations in colorectal cancer')">KRAS CRC</button>
+        <button class="quick-btn" onclick="sendQuick('What does TMB-High mean for immunotherapy eligibility?')">TMB & immunotherapy</button>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <textarea class="chat-textarea" id="chat-input"
+            placeholder="Ask CancerGPT anything about this patient or oncology in general..."
+            onkeydown="handleKey(event)" rows="1"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <button class="send-btn" onclick="sendMessage()" id="send-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--bg)">
+              <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIPELINE PAGE -->
+<div class="page" id="page-pipeline">
+  <div class="pipeline-content">
+    <div class="section-label">Architecture</div>
+    <div class="section-title">CancerGPT Pipeline</div>
+    <div class="pipeline-steps">
+      <div class="pipeline-step">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title">Data Preprocessing</div>
+          <div class="step-desc">Ingests cBioPortal data: clinical patient/sample records, somatic mutations, copy number alterations, structural variants, and timelines. Standardizes formats and merges into unified patient records.</div>
+          <span class="step-file">📄 01_data_preprocessing.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title">Feature Engineering</div>
+          <div class="step-desc">Builds 155 ML-ready features per patient: one-hot mutation flags for 29 key genes, CNA profiles, TMB quantification, mutational signatures (SBS1-13), MSI proxy, and CIN index.</div>
+          <span class="step-file">📄 02_feature_engineering.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title">RAG Indexing</div>
+          <div class="step-desc">Builds a TF-IDF retrieval index over 103 patient summaries enriched with NCCN/ESMO guideline context. Used to retrieve similar cases and evidence during LLM consultation.</div>
+          <span class="step-file">📄 03_rag_indexing.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">04</div>
+        <div class="step-content">
+          <div class="step-title">LLM Agent</div>
+          <div class="step-desc">Groq-powered clinical agent that loads patient profiles, retrieves RAG context, and generates evidence-tiered treatment recommendations with multi-turn consultation support.</div>
+          <span class="step-file">📄 04_llm_agent.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">05</div>
+        <div class="step-content">
+          <div class="step-title">API Server</div>
+          <div class="step-desc">FastAPI backend exposing /consult/load, /consult/chat, /consult/report, /patients and analytics endpoints. Serves this web interface.</div>
+          <span class="step-file">📄 api_server.py</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .app -->
+
+<script>
+// ── Cancer type map — your exact cBioPortal data ─────────────────────────────
+const CANCER_MAP = {
+  0:'Breast Cancer',1:'Colorectal Cancer',2:'Salivary Gland Cancer',
+  3:'Hepatobiliary Cancer',4:'Pancreatic Cancer',6:'Non-Small Cell Lung Cancer',
+  9:'Thyroid Cancer',10:'Melanoma',11:'Soft Tissue Sarcoma',
+  15:'Cancer of Unknown Primary',17:'Glioma',42:'Miscellaneous Brain Tumor',
+  55:'Uterine Sarcoma',62:'Breast Sarcoma',75:'Appendiceal Cancer',
+};
+
+function decodeCancer(val) {
+  if (!val && val !== 0) return '';
+  if (typeof val === 'string' && isNaN(val.trim())) return val; // already text
+  const k = Math.round(parseFloat(val));
+  return CANCER_MAP[k] || val;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const API_URL = 'http://localhost:8000';
+let currentPatient = null;
+let conversationHistory = [];
+let isTyping = false;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  const nb = document.getElementById(`nav-${name}`);
+  if (nb) nb.classList.add('active');
+}
+
+// ── Load patient list on startup ──────────────────────────────────────────────
+async function loadPatientList() {
+  const hint = document.getElementById('patient-hint');
+  const sel  = document.getElementById('patient-select');
+  try {
+    const r = await fetch(`${API_URL}/patients?limit=500`, {signal: AbortSignal.timeout(8000)});
+    if (!r.ok) throw new Error('API error');
+    const d = await r.json();
+    const patients = d.patients || [];
+    if (patients.length === 0) {
+      hint.textContent = 'No patients found. Run your pipeline first.';
+      return;
+    }
+    const sample = patients.slice(0,3).map(p => p.PATIENT_ID).join(', ');
+    hint.textContent = `${d.total || patients.length} patients loaded. e.g. ${sample}`;
+    // Update homepage stat
+    const ht = document.getElementById('home-total');
+    if (ht) ht.textContent = d.total || patients.length;
+
+    sel.innerHTML = '<option value="">— Pick from list —</option>';
+    patients.forEach(p => {
+      const cancer = decodeCancer(p.CANCER_TYPE);
+      const age    = p.AGE ? ` · ${Math.round(p.AGE)}y` : '';
+      const opt    = document.createElement('option');
+      opt.value    = p.PATIENT_ID;
+      opt.textContent = `${p.PATIENT_ID} — ${cancer}${age}`;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    hint.textContent = 'API offline — start python api_server.py first.';
+    hint.style.color = 'var(--danger)';
+  }
+}
+
+// ── Load patient ──────────────────────────────────────────────────────────────
+async function loadPatient() {
+  const pid = document.getElementById('patient-id-input').value.trim();
+  if (!pid) {
+    const inp = document.getElementById('patient-id-input');
+    inp.style.borderColor = 'var(--danger)';
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  const btn = document.getElementById('load-btn');
+  btn.disabled = true;
+  btn.textContent = '…';
+  showPage('consult');
+
+  // Show loading in chat
+  clearChat();
+  showTyping();
+
+  try {
+    const resp = await fetch(`${API_URL}/consult/load`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({patient_id: pid}),
+      signal: AbortSignal.timeout(120000)
+    });
+
+    removeTyping();
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({detail: `HTTP ${resp.status}`}));
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    currentPatient = pid;
+    updatePatientSidebar(pid, data);
+    const msg = data.initial_assessment || `Patient ${pid} loaded successfully.`;
+    addMessage('ai', formatResponse(msg));
+
+  } catch(e) {
+    removeTyping();
+    addMessage('ai', `⚠️ Could not load patient <strong>${pid}</strong>: ${e.message}<br><br>Make sure your API server is running and the patient ID exists in your dataset.`);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Load';
+}
+
+// ── Update sidebar ────────────────────────────────────────────────────────────
+function updatePatientSidebar(pid, data) {
+  document.getElementById('patient-info-section').style.display = 'block';
+  document.getElementById('genomic-panel').style.display = 'block';
+  document.getElementById('no-patient-hint').style.display = 'none';
+  document.getElementById('pt-name').textContent = `Patient ${pid}`;
+
+  const tags    = document.getElementById('pt-tags');
+  tags.innerHTML = '';
+
+  // Support both data.profile (new API) and data.patient (fallback)
+  const p          = data.profile || data.patient || {};
+  const cancerType = decodeCancer(p.cancer_type || p.CANCER_TYPE || '');
+  const stage      = String(p.stage || p.STAGE || '');
+  const age        = p.age || p.AGE;
+  const sex        = String(p.sex || p.SEX || '');
+  const tmb        = p.tmb || p.TMB;
+  const msi        = String(p.msi_status || p.MSI_STATUS || '');
+
+  if (cancerType && cancerType !== 'Unknown')
+    tags.innerHTML += `<span class="tag tag-cancer">${cancerType}</span>`;
+  // Only show stage if it's a real value (not Unknown/nan/None/0)
+  if (stage && !['unknown','nan','none','0'].includes(stage.toLowerCase()))
+    tags.innerHTML += `<span class="tag tag-stage">Stage ${stage}</span>`;
+  // Age — just the number, no min/max
+  if (age && parseFloat(age) > 0)
+    tags.innerHTML += `<span class="tag tag-age">${Math.round(parseFloat(age))}y</span>`;
+  if (sex && sex !== 'Unknown' && sex !== 'nan')
+    tags.innerHTML += `<span class="tag tag-age">${sex}</span>`;
+  if (tmb && parseFloat(tmb) > 0)
+    tags.innerHTML += `<span class="tag tag-tmb">TMB ${parseFloat(tmb).toFixed(1)}</span>`;
+  if (msi && msi !== 'Unknown' && msi !== 'nan')
+    tags.innerHTML += `<span class="tag tag-age">MSI:${msi}</span>`;
+
+  // Genes
+  const DRIVERS    = new Set(['TP53','RB1','CDKN2A','PTEN','APC','VHL','SMAD4','NF1','STK11','BRCA1','BRCA2']);
+  const ACTIONABLE = new Set(['KRAS','BRAF','EGFR','ERBB2','PIK3CA','ALK','RET','MET','IDH1','IDH2',
+    'FGFR1','FGFR2','FGFR3','CDK4','CDK6','NRAS','HRAS','NTRK1','NTRK2','NTRK3','MYC']);
+
+  const mutGenes = p.mutated_genes || p.TOP_MUTATED_GENES || [];
+  const cnaList  = p.cna || [];
+
+  const geneHTML = mutGenes.slice(0,8).map(g => {
+    const cls = DRIVERS.has(g) ? 'badge-driver' : 'badge-actionable';
+    const lbl = DRIVERS.has(g) ? 'Driver' : (ACTIONABLE.has(g) ? 'Actionable' : 'Variant');
+    return `<div class="gene-item"><span class="gene-name">${g}</span><span class="gene-badge ${cls}">${lbl}</span></div>`;
+  }).join('');
+
+  const cnaHTML = cnaList.slice(0,3).map(c =>
+    `<div class="gene-item"><span class="gene-name">${c.gene}</span>
+     <span class="gene-badge" style="color:var(--accent2);background:rgba(14,165,233,.12)">${c.type}</span></div>`
+  ).join('');
+
+  document.getElementById('gene-list').innerHTML = geneHTML + cnaHTML ||
+    '<div style="color:var(--text-dim);font-size:12px;padding:6px">No mutation data found</div>';
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function sendQuick(text) {
+  if (isTyping) return;
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg   = input.value.trim();
+  if (!msg || isTyping) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('empty-state') && (document.getElementById('empty-state').style.display = 'none');
+
+  addMessage('user', msg);
+  conversationHistory.push({role:'user', content:msg});
+  showTyping();
+  isTyping = true;
+  document.getElementById('send-btn').disabled = true;
+
+  // Disable quick buttons while loading
+  document.querySelectorAll('.quick-btn').forEach(b => b.disabled = true);
+
+  try {
+    const resp = await fetch(`${API_URL}/consult/chat`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, patient_id: currentPatient}),
+      signal: AbortSignal.timeout(120000)
+    });
+
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+    const responseText = data.response || 'No response received.';
+
+    removeTyping();
+    conversationHistory.push({role:'assistant', content:responseText});
+    addMessage('ai', formatResponse(responseText));
+
+  } catch(e) {
+    removeTyping();
+    addMessage('ai', `⚠️ Error: ${e.message}<br>Ensure your API server is running at <code>${API_URL}</code>`);
+  }
+
+  isTyping = false;
+  document.getElementById('send-btn').disabled = false;
+  document.querySelectorAll('.quick-btn').forEach(b => b.disabled = false);
+}
+
+// ── Generate report ───────────────────────────────────────────────────────────
+async function generateReport() {
+  if (!currentPatient) {
+    addMessage('ai', '⚠️ Please load a patient first before generating a clinical report.');
+    return;
+  }
+  if (isTyping) return;
+
+  addMessage('user', 'Generate a formal clinical consultation report for this patient.');
+  showTyping();
+  isTyping = true;
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const resp = await fetch(`${API_URL}/consult/report`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({patient_id: currentPatient}),
+      signal: AbortSignal.timeout(120000)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    removeTyping();
+    addMessage('ai', formatResponse(data.report_text || 'Report generated.'));
+  } catch(e) {
+    removeTyping();
+    addMessage('ai', `⚠️ Report generation failed: ${e.message}`);
+  }
+
+  isTyping = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+// ── Format / display helpers ──────────────────────────────────────────────────
+function formatResponse(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--accent);margin:14px 0 6px">$1</div>')
+    .replace(/^### (.+)$/gm, '<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:1px;font-family:\'DM Mono\',monospace">$1</div>')
+    .replace(/Tier 1A/g, '<span class="tier-1a">Tier 1A</span>')
+    .replace(/Tier 1B/g, '<span class="tier-1b">Tier 1B</span>')
+    .replace(/Tier 2/g,  '<span class="tier-2">Tier 2</span>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\n- /g, '<br>• ')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function addMessage(role, content) {
+  const container = document.getElementById('chat-messages');
+  const es = document.getElementById('empty-state');
+  if (es) es.style.display = 'none';
+  const msg = document.createElement('div');
+  msg.className = `message ${role === 'user' ? 'user' : ''}`;
+  const av = document.createElement('div');
+  av.className = `msg-avatar ${role === 'user' ? 'avatar-user' : 'avatar-ai'}`;
+  av.textContent = role === 'user' ? 'Dr' : 'Cx';
+  const cd = document.createElement('div');
+  cd.className = 'msg-content';
+  cd.innerHTML = content;
+  msg.appendChild(av);
+  msg.appendChild(cd);
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('chat-messages');
+  const t = document.createElement('div');
+  t.className = 'message'; t.id = 'typing-indicator';
+  t.innerHTML = `<div class="msg-avatar avatar-ai">Cx</div>
+    <div class="msg-content"><div class="typing-indicator">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div></div>`;
+  container.appendChild(t);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+function clearChat() {
+  const c = document.getElementById('chat-messages');
+  c.innerHTML = '';
+  conversationHistory = [];
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  await loadPatientList();
+  // Auto-load patient from URL param (coming from patient_browser.html)
+  const params = new URLSearchParams(window.location.search);
+  const pid    = params.get('patient');
+  if (pid) {
+    document.getElementById('patient-id-input').value = pid;
+    showPage('consult');
+    await loadPatient();
+  }
+})();
+</script>
+</body>
+</html>
