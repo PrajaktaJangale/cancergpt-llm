@@ -20,6 +20,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +80,8 @@ sessions = {}
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
+
+app.mount("/web", StaticFiles(directory="web"), name="web")
 
 @app.get("/")
 async def root():
