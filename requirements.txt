@@ -1,9 +1,10 @@
 # CancerGPT Requirements
 # Core pipeline
+setuptools>=68.0.0
 pandas==2.2.3
 numpy==1.26.4
 scikit-learn==1.5.2
-pyarrow==17.0.0
+pyarrow>=15.0.0
 scipy==1.14.1
 
 # LLM
