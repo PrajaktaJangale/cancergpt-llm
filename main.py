@@ -206,7 +206,7 @@ async def generate_report(req: ReportRequest):
         raise HTTPException(status_code=503, detail="Agent not available")
 
     try:
-        result = agent.generate_clinical_report(req.patient_id)
+        result = agent.generate_report()
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
